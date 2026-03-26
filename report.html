@@ -1,0 +1,349 @@
+<!DOCTYPE html> 
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Entanda Secondary School - Grade 10 Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body{font-family:Arial;margin:20px;background:#f4f8ff;}
+.header{text-align:center;color:#0a3d91;}
+.logo{width:250px;}
+.motto{font-style:italic;color:#444;}
+input, select{border:none;border-bottom:1px solid #000;padding:3px;}
+.section-title{margin-top:30px;font-weight:bold;font-size:18px;color:#0a3d91;}
+table{width:100%;border-collapse:collapse;margin-top:10px;background:white;}
+th{background:#0a3d91;color:white;padding:8px;}
+td{border:1px solid #ccc;padding:6px;text-align:center;}
+.marks{width:60px;}
+button{background:#0a3d91;color:white;border:none;padding:6px 12px;cursor:pointer;margin:3px 0;}
+button:hover{background:#062866;}
+.footer{margin-top:40px;display:flex;justify-content:space-between;}
+.signature{width:200px;border-top:1px solid black;text-align:center;padding-top:5px;margin-top:40px;}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+<h2>Entanda Secondary School</h2>
+Term: <input id="term">
+Year: <input id="year">
+</div>
+
+<br>
+Student Name: <input id="name">
+Admission No: <input id="adm">
+Class: 
+<select id="class">
+<option value="Grade10">Grade 10</option>
+</select>
+
+<br><br>
+
+<div class="section-title">Grade 10 Subjects</div>
+<table><tbody id="grade10">
+<tr><td>English</td><td><input class="marks" oninput="calculate()"></td></tr>
+<tr><td>Kiswahili</td><td><input class="marks" oninput="calculate()"></td></tr>
+<tr><td>Mathematics</td><td><input class="marks" oninput="calculate()"></td></tr>
+<tr><td>Biology</td><td><input class="marks" oninput="calculate()"></td></tr>
+<tr><td>Chemistry</td><td><input class="marks" oninput="calculate()"></td></tr>
+<tr><td>Physics</td><td><input class="marks" oninput="calculate()"></td></tr>
+<tr><td>Geography</td><td><input class="marks" oninput="calculate()"></td></tr>
+<tr><td>History</td><td><input class="marks" oninput="calculate()"></td></tr>
+<tr><td>CRE</td><td><input class="marks" oninput="calculate()"></td></tr>
+<tr><td>Computer Studies</td><td><input class="marks" oninput="calculate()"></td></tr>
+<tr><td>Elective</td><td><input class="marks" oninput="calculate()"></td></tr>
+</tbody></table>
+
+<br>
+Total Marks: <span id="total">0</span><br>
+Level / Grade: <span id="meangrade">-</span>
+
+<div class="footer">
+<div class="signature">Class Teacher Signature</div>
+<div class="signature">Principal Signature</div>
+</div>
+
+<br><br>
+<button onclick="saveStudent()">SAVE STUDENT</button>
+<button onclick="updateStudent()">UPDATE STUDENT</button>
+<button onclick="loadAllDatabases()">LOAD CLASS DATABASE</button>
+
+<div class="section-title">Class Database</div>
+<div id="classDBs"></div>
+<button onclick="downloadFullClassPDF('Grade10_students')">Download Full Class PDF</button>
+<button onclick="clearClass('Grade10_students')">Clear Grade 10 Database</button>
+
+<script>
+let editIndex=null;
+let editKey=null;
+
+function gradeSystemSubject(m){
+if(m>=81) return "E.E";
+if(m>=61) return "M.E";
+if(m>=51) return "A.E";
+return "B.E";
+}
+
+function gradeSystemTotal(total,outof){
+if(total>=900) return "E.E"; 
+if(total>=700) return "M.E";
+if(total>=550) return "A.E";
+return "B.E";
+}
+
+function calculate(){
+let total=0;
+const inputs=document.querySelectorAll(".marks");
+inputs.forEach(i=>total+=parseInt(i.value)||0);
+document.getElementById("total").innerText=total;
+const maxTotal=inputs.length*100;
+document.getElementById("meangrade").innerText=gradeSystemTotal(total,maxTotal);
+}
+
+function saveStudent(){
+const cls=document.getElementById("class").value;
+const key=cls+"_students";
+let student={
+name:document.getElementById("name").value,
+adm:document.getElementById("adm").value,
+class:cls,
+term:document.getElementById("term").value,
+year:document.getElementById("year").value,
+subjects:{},total:0,level:"",outof:0
+};
+const inputs=document.querySelectorAll(`#grade10 .marks`);
+inputs.forEach(input=>{
+const sub=input.parentElement.parentElement.children[0].innerText;
+const m=parseInt(input.value)||0;
+student.subjects[sub]={marks:m,level:gradeSystemSubject(m)};
+student.total+=m;
+});
+student.outof=inputs.length*100;
+student.level=gradeSystemTotal(student.total,student.outof);
+let db=JSON.parse(localStorage.getItem(key))||[];
+db.push(student);
+db.sort((a,b)=>b.total - a.total);
+db.forEach((s,i)=>s.position=i+1);
+localStorage.setItem(key,JSON.stringify(db));
+alert("Saved");
+loadAllDatabases();
+}
+
+function enableEditFromDB(key,index){
+const db=JSON.parse(localStorage.getItem(key))||[];
+const s=db[index];
+document.getElementById("name").value=s.name;
+document.getElementById("adm").value=s.adm;
+document.getElementById("class").value=s.class;
+document.getElementById("term").value=s.term;
+document.getElementById("year").value=s.year;
+const inputs=document.querySelectorAll(`#grade10 .marks`);
+let i=0;
+for(let sub in s.subjects){inputs[i].value=s.subjects[sub].marks;i++;}
+calculate();
+editIndex=index;
+editKey=key;
+}
+
+function updateStudent(){
+if(editIndex===null)return;
+let db=JSON.parse(localStorage.getItem(editKey))||[];
+let student=db[editIndex];
+student.name=document.getElementById("name").value;
+student.adm=document.getElementById("adm").value;
+student.term=document.getElementById("term").value;
+student.year=document.getElementById("year").value;
+student.total=0;
+const inputs=document.querySelectorAll(".marks");
+let i=0;
+for(let sub in student.subjects){
+let m=parseInt(inputs[i].value)||0;
+student.subjects[sub].marks=m;
+student.subjects[sub].level=gradeSystemSubject(m);
+student.total+=m;i++;
+}
+student.level=gradeSystemTotal(student.total,student.outof);
+db.sort((a,b)=>b.total - a.total);
+db.forEach((s,i)=>s.position=i+1);
+localStorage.setItem(editKey,JSON.stringify(db));
+editIndex=null; editKey=null;
+alert("Updated");
+loadAllDatabases();
+}
+
+function downloadPDF(key,index){
+const db=JSON.parse(localStorage.getItem(key))||[];
+if(!db.length)return;
+
+const s=db[index];
+const { jsPDF } = window.jspdf;
+const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+
+const teacherComment = prompt("Enter Teacher's Comment:","Good performance, keep improving.") || "No comment";
+
+const img=new Image();
+img.src="https://via.placeholder.com/200x80.png?text=School+Logo";
+
+img.onload=function(){
+
+let y=20;
+
+doc.addImage(img,'PNG',80,10,50,25);
+
+doc.setFontSize(18);
+doc.setTextColor(10,61,145);
+doc.text("Entanda Secondary School",105,40,null,null,"center");
+
+doc.setFontSize(11);
+doc.setTextColor(0,0,0);
+doc.text(`Name: ${s.name}`,20,55);
+doc.text(`Adm No: ${s.adm}`,20,62);
+doc.text(`Class: ${s.class}`,20,69);
+doc.text(`Term: ${s.term}`,140,55);
+doc.text(`Year: ${s.year}`,140,62);
+
+y=80;
+
+doc.setFillColor(10,61,145);
+doc.setTextColor(255,255,255);
+doc.rect(15,y,180,8,'F');
+doc.text("Subject",20,y+5);
+doc.text("Marks",100,y+5);
+doc.text("Level",150,y+5);
+
+y+=10;
+doc.setTextColor(0,0,0);
+
+for(let sub in s.subjects){
+const d=s.subjects[sub];
+if(y>250){doc.addPage(); y=20;}
+doc.rect(15,y,180,8);
+doc.text(sub,20,y+5);
+doc.text(String(d.marks),105,y+5);
+doc.text(d.level,155,y+5);
+y+=8;
+}
+
+y+=10;
+doc.setFontSize(12);
+doc.text(`Total: ${s.total} / ${s.outof}`,20,y);
+doc.text(`Level: ${s.level}`,20,y+8);
+doc.text(`Position: ${s.position} out of ${db.length}`,20,y+16);
+
+y+=25;
+
+const canvas=document.createElement('canvas');
+canvas.width=500;
+canvas.height=250;
+
+const ctx=canvas.getContext('2d');
+
+new Chart(ctx,{
+type:'line',
+data:{
+labels:Object.keys(s.subjects),
+datasets:[{
+label:'Marks',
+data:Object.values(s.subjects).map(x=>x.marks),
+fill:false,
+borderColor:'blue',
+tension:0.3
+}]
+},
+options:{
+responsive:false,
+scales:{y:{beginAtZero:true,max:100}}
+}
+});
+
+setTimeout(()=>{
+
+const chartImg=canvas.toDataURL('image/png');
+doc.addImage(chartImg,'PNG',20,y,170,80);
+
+y+=90;
+
+doc.setFontSize(12);
+doc.text("Teacher's Comment:",20,y);
+doc.setFontSize(10);
+doc.text(teacherComment,20,y+8,{maxWidth:170});
+
+y+=30;
+
+doc.text("Class Teacher Signature:",20,y);
+doc.text("Principal Signature:",120,y);
+
+doc.save(`${s.name}_${s.class}.pdf`);
+
+},500);
+
+};
+}
+
+function downloadFullClassPDF(key){
+let db=JSON.parse(localStorage.getItem(key))||[];
+if(!db.length) return;
+db.sort((a,b)=>b.total - a.total);
+db.forEach((s,i)=>s.position=i+1);
+const { jsPDF } = window.jspdf;
+const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+let y=20;
+doc.setFont("helvetica","bold");
+doc.setFontSize(18);
+doc.setTextColor(0,102,204);
+doc.text("Entanda Secondary School",148,15,null,null,"center");
+doc.setFontSize(12); doc.setTextColor(0,0,0);
+doc.text("Grade 10 CLASS PERFORMANCE REPORT",148,22,null,null,"center");
+y=35;
+const subs=Object.keys(db[0].subjects);
+doc.setFillColor(0,102,204); doc.setTextColor(255,255,255);
+doc.rect(10,y,277,8,'F');
+doc.text("Student Name",12,y+5);
+let x=60;
+subs.forEach(sub=>{doc.text(sub.substring(0,8),x,y+5); x+=20;});
+doc.text("Total",x,y+5); doc.text("Pos",x+20,y+5);
+y+=10; doc.setTextColor(0,0,0);
+db.forEach((s,i)=>{
+if(y>190){doc.addPage(); y=20;}
+doc.rect(10,y,277,8);
+doc.text((i+1)+". "+s.name.substring(0,20),12,y+5);
+let x=60;
+subs.forEach(sub=>{doc.text(String(s.subjects[sub].marks),x,y+5); x+=20;});
+doc.text(String(s.total),x,y+5); doc.text(String(s.position),x+20,y+5);
+y+=8;
+});
+doc.save("Grade10_FullClassReport.pdf");
+}
+
+function clearClass(key){
+if(confirm("Clear Grade 10 data?")){localStorage.removeItem(key);loadAllDatabases();}
+}
+
+function loadAllDatabases(){
+const key="Grade10_students";
+const db=JSON.parse(localStorage.getItem(key))||[];
+const div=document.getElementById("classDBs");
+div.innerHTML="";
+if(!db.length){div.innerHTML="<h3>No Grade 10 Students</h3>"; return;}
+const subs=Object.keys(db[0].subjects);
+let html=`<table><tr><th>Name</th>`;
+subs.forEach(s=>html+=`<th>${s}</th>`);
+html+=`<th>Total</th><th>Level</th><th>Pos</th><th>PDF</th><th>EDIT</th></tr>`;
+db.forEach((s,i)=>{
+html+=`<tr><td>${s.name}</td>`;
+subs.forEach(sub=>html+=`<td>${s.subjects[sub].marks}</td>`);
+html+=`<td>${s.total}</td><td>${s.level}</td><td>${s.position}</td>
+<td><button onclick="downloadPDF('${key}',${i})">PDF</button></td>
+<td><button onclick="enableEditFromDB('${key}',${i})">EDIT</button></td></tr>`;
+});
+html+=`</table>`;
+div.innerHTML=html;
+}
+
+window.onload=loadAllDatabases;
+</script>
+</body>
+</html>
